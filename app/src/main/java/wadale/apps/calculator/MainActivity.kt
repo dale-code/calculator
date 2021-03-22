@@ -1,20 +1,23 @@
 package wadale.apps.calculator
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+
+private const val STATE_PENDING_OPERATION = "PendingOperation"
+private const val STATE_OPERAND1 = "Operand1"
+private const val STATE_OPERAND1_STORED = "Operand1_Stored"
 
 class MainActivity : AppCompatActivity() {
     private lateinit var result: EditText
     private lateinit var newNumber: EditText
-    private val displayOperation by lazy(LazyThreadSafetyMode.NONE){findViewById<TextView>(R.id.operation) }
+    private val displayOperation by lazy(LazyThreadSafetyMode.NONE) { findViewById<TextView>(R.id.operation) }
 
     //variables to hold the operands and type of calculations
     private var operand1: Double? = null
-    private var operand2: Double = 0.0
 
     private var pendingOperation = "="
 
@@ -43,11 +46,11 @@ class MainActivity : AppCompatActivity() {
 
         val buttonEquals = findViewById<Button>(R.id.buttonEquals)
         val buttonDivide = findViewById<Button>(R.id.buttonDivide)
-        val buttonMultiply= findViewById<Button>(R.id.buttonMultiply)
+        val buttonMultiply = findViewById<Button>(R.id.buttonMultiply)
         val buttonMinus = findViewById<Button>(R.id.buttonMinus)
         val buttonPlus = findViewById<Button>(R.id.buttonPlus)
 
-        val listener = View.OnClickListener{ v ->
+        val listener = View.OnClickListener { v ->
             val b = v as Button
             newNumber.append(b.text)
         }
@@ -63,13 +66,18 @@ class MainActivity : AppCompatActivity() {
         button9.setOnClickListener(listener)
         buttonDot.setOnClickListener(listener)
 
-        val opListener = View.OnClickListener{v ->
+
+        val opListener = View.OnClickListener { v ->
             val op = (v as Button).text.toString()
-            val value = newNumber.text.toString()
-            if(value.isNotEmpty()){
-                    performOperation(value,op)
+            try {
+                val value = newNumber.text.toString().toDouble()
+                performOperation(value, op)
+
+            } catch (e: NumberFormatException) {
+                newNumber.setText("")
+
             }
-        pendingOperation = op
+            pendingOperation = op
             displayOperation.text = pendingOperation
         }
         buttonEquals.setOnClickListener(opListener)
@@ -77,29 +85,37 @@ class MainActivity : AppCompatActivity() {
         buttonMultiply.setOnClickListener(opListener)
         buttonMinus.setOnClickListener(opListener)
         buttonPlus.setOnClickListener(opListener)
-    }
-    private fun performOperation(value: String, operation: String){
-        if(operand1 == null){
-            operand1 = value.toDouble()
-        }else {
-            operand2 = value.toDouble()
 
+    }
+
+    private fun performOperation(value: Double, operation: String) {
+        if (operand1 == null) {
+            operand1 = value
+        } else {
             if (pendingOperation == "=") {
                 pendingOperation = operation
             }
             when (pendingOperation) {
-                "=" -> operand1 = operand2
-                "/" -> operand1 = if (operand2 == 0.0) {
+                "=" -> operand1 = value
+                "/" -> operand1 = if (value == 0.0) {
                     Double.NaN // handle attempt to divide by // zero
                 } else {
-                    operand1!! / operand2
+                    operand1!! / value
                 }
-                "*" -> operand1 = operand1!! * operand2
-                "-" -> operand1 = operand1!! - operand2
-                "+" -> operand1 = operand1!! + operand2
+                "*" -> operand1 = operand1!! * value
+                "-" -> operand1 = operand1!! - value
+                "+" -> operand1 = operand1!! + value
             }
         }
         result.setText(operand1.toString())
         newNumber.setText("")
+    }
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        if(operand1 != null){
+            outState.putDouble(STATE_OPERAND1, operand1!!)
+            outState.putBoolean(STATE_OPERAND1_STORED, true)
+        }
+        outState.putString(STATE_PENDING_OPERATION, pendingOperation)
     }
 }
